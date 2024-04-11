@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["coekjan <cn_yzr@qq.com>"]
 license = "MIT"
+description = "A tool to upgrade typst packages"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive", "env", "suggestions"] }
