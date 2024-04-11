@@ -3,6 +3,8 @@ use std::{fmt::Display, str::FromStr};
 use regex::Regex;
 use semver::Version;
 
+use crate::global;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypstDep {
     namespace: String,
@@ -62,15 +64,19 @@ impl TypstDep {
             eprintln!("Start to fetch package {self} metadata");
         }
 
-        let resp = reqwest::blocking::Client::new()
+        let mut req = reqwest::blocking::Client::new()
             .get(format!(
                 "https://api.github.com/repos/typst/packages/contents/packages/{}/{}",
                 self.namespace, self.name
             ))
             .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "typst-upgrade")
-            .send()
-            .unwrap();
+            .header("User-Agent", "typst-upgrade");
+
+        if let Some(token) = global::CONFIG.get().unwrap().token.clone() {
+            req = req.header("Authorization", format!("Bearer {}", token))
+        }
+
+        let resp = req.send().unwrap();
         if !resp.status().is_success() {
             panic!("Failed to fetch package {self} metadata: {}", resp.status());
         }

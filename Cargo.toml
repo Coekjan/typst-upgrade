@@ -14,4 +14,5 @@ reqwest = { version = "0.12.3", features = ["blocking", "json"] }
 semver = "1.0.22"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
+toml = "0.8.12"
 typst-syntax = "0.11.0"

@@ -1,9 +1,13 @@
-use std::path::PathBuf;
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 use clap::{Parser, Subcommand};
 use cmd::run::RunArgs;
 
 mod cmd;
+mod global;
 mod typstdep;
 
 #[derive(Parser)]
@@ -24,6 +28,14 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+
+    global::config_load(
+        cli.config.unwrap_or(
+            Path::new(&env::var("HOME").unwrap())
+                .join(".config")
+                .join("typst-upgrade.toml"),
+        ),
+    );
 
     match cli.command {
         Commands::Config => todo!(),
