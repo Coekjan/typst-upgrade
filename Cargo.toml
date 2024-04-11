@@ -1,0 +1,15 @@
+[package]
+name = "typst-upgrade"
+version = "0.1.0"
+edition = "2021"
+authors = ["coekjan <cn_yzr@qq.com>"]
+license = "MIT"
+
+[dependencies]
+clap = { version = "4.5.4", features = ["derive", "env", "suggestions"] }
+regex = "1.10.4"
+reqwest = { version = "0.12.3", features = ["blocking", "json"] }
+semver = "1.0.22"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+typst-syntax = "0.11.0"
