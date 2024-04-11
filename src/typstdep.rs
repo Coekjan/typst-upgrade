@@ -75,7 +75,9 @@ impl TypstDep {
             panic!("Failed to fetch package {self} metadata: {}", resp.status());
         }
         if let Some(rem) = resp.headers().get("x-ratelimit-remaining") {
-            eprintln!("GitHub API rate limit remaining: {}", rem.to_str().unwrap());
+            if verbose {
+                eprintln!("GitHub API rate limit remaining: {}", rem.to_str().unwrap());
+            }
             if rem == "0" {
                 panic!("GitHub API rate limit exceeded");
             }
