@@ -70,7 +70,10 @@ impl TypstDep {
                 self.namespace, self.name
             ))
             .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "typst-upgrade");
+            .header(
+                "User-Agent",
+                format!("typst-upgrade/{}", env!("CARGO_PKG_VERSION")),
+            );
 
         if let Some(token) = global::CONFIG.get().unwrap().token.clone() {
             req = req.header("Authorization", format!("Bearer {}", token))
