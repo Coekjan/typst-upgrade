@@ -73,7 +73,8 @@ impl TypstDep {
             .header(
                 "User-Agent",
                 format!("typst-upgrade/{}", env!("CARGO_PKG_VERSION")),
-            );
+            )
+            .header("X-GitHub-Api-Version", "2022-11-28");
 
         if let Some(token) = global::CONFIG.get().unwrap().token.clone() {
             req = req.header("Authorization", format!("Bearer {}", token))
