@@ -4,7 +4,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use cmd::run::RunArgs;
+use cmd::{config::ConfigArgs, run::RunArgs};
 
 mod cmd;
 mod global;
@@ -13,8 +13,17 @@ mod typstdep;
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long, value_name = "FILE", env = "TYPST_UPGRADE_CONFIG")]
-    config: Option<PathBuf>,
+    #[arg(
+        short,
+        long,
+        value_name = "FILE",
+        env = "TYPST_UPGRADE_CONFIG",
+        default_value = Path::new(&env::var("HOME").unwrap())
+            .join(".config")
+            .join("typst-upgrade.toml")
+            .into_os_string(),
+    )]
+    config: PathBuf,
 
     #[command(subcommand)]
     command: Commands,
@@ -22,25 +31,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Config,
+    Config(ConfigArgs),
     Run(RunArgs),
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    global::config_load(
-        cli.config.unwrap_or(
-            Path::new(&env::var("HOME").unwrap())
-                .join(".config")
-                .join("typst-upgrade.toml"),
-        ),
-    );
+    global::config_load(cli.config);
 
     match cli.command {
-        Commands::Config => todo!(),
-        Commands::Run(args) => {
-            cmd::run::execute(args);
-        }
+        Commands::Config(args) => cmd::config::execute(args),
+        Commands::Run(args) => cmd::run::execute(args),
     }
 }
