@@ -1,9 +1,43 @@
-use std::{fmt::Display, str::FromStr};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
+use once_cell::sync::Lazy;
 use regex::Regex;
 use semver::Version;
 
-use crate::global;
+static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<Version>>> = Lazy::new(|| {
+    let raw_meta = reqwest::blocking::get("https://packages.typst.org/preview/index.json")
+        .expect("Failed to fetch package metadata")
+        .json::<serde_json::Value>()
+        .expect("Failed to parse package metadata")
+        .as_array()
+        .expect("Invalid package metadata")
+        .iter()
+        .map(|v| {
+            let package = v.as_object().expect("Invalid package metadata");
+            let name = package
+                .get("name")
+                .expect("Package name not found")
+                .as_str()
+                .unwrap();
+            let version = Version::parse(
+                package
+                    .get("version")
+                    .expect("Package version not found")
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            (name.to_string(), version)
+        })
+        .collect::<Vec<_>>();
+
+    let mut result = HashMap::new();
+    for (name, version) in raw_meta {
+        result.entry(name).or_insert_with(Vec::new).push(version);
+    }
+
+    result
+});
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypstDep {
@@ -50,7 +84,7 @@ impl TypstDep {
         self.namespace == "local"
     }
 
-    pub fn upgrade(&self, verbose: bool) -> TypstDepUpgrader {
+    pub fn upgrade(&self) -> TypstDepUpgrader {
         if self.is_local() {
             eprintln!("Local package {self} is not upgradable");
 
@@ -60,61 +94,15 @@ impl TypstDep {
             };
         }
 
-        if verbose {
-            eprintln!("Start to fetch package {self} metadata");
-        }
-
-        let mut req = reqwest::blocking::Client::new()
-            .get(format!(
-                "https://api.github.com/repos/typst/packages/contents/packages/{}/{}",
-                self.namespace, self.name
-            ))
-            .header("Accept", "application/vnd.github+json")
-            .header(
-                "User-Agent",
-                format!("typst-upgrade/{}", env!("CARGO_PKG_VERSION")),
-            )
-            .header("X-GitHub-Api-Version", "2022-11-28");
-
-        if let Some(token) = global::CONFIG.get().unwrap().token.clone() {
-            req = req.header("Authorization", format!("Bearer {}", token))
-        }
-
-        let resp = req.send().unwrap();
-        if !resp.status().is_success() {
-            panic!("Failed to fetch package {self} metadata: {}", resp.status());
-        }
-        if let Some(rem) = resp.headers().get("x-ratelimit-remaining") {
-            if verbose {
-                eprintln!("GitHub API rate limit remaining: {}", rem.to_str().unwrap());
-            }
-            if rem == "0" {
-                panic!("GitHub API rate limit exceeded");
-            }
-        }
-
-        let ver: Vec<_> = resp
-            .json::<serde_json::Value>()
-            .expect("Failed to parse package metadata")
-            .as_array()
-            .unwrap()
+        let ver: Vec<_> = TYPST_PACKAGE_META
+            .get(&self.name)
+            .expect("Package not found")
             .iter()
-            .map(|item| {
-                Version::parse(
-                    item.as_object()
-                        .unwrap()
-                        .get("name")
-                        .unwrap()
-                        .as_str()
-                        .unwrap(),
-                )
-                .unwrap()
-            })
-            .filter(|version| *version > self.version)
+            .filter(|&version| *version > self.version)
             .map(|version| TypstDep {
                 namespace: self.namespace.clone(),
                 name: self.name.clone(),
-                version,
+                version: version.clone(),
             })
             .collect();
 

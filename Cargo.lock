@@ -1230,6 +1230,7 @@ name = "typst-upgrade"
 version = "0.3.2"
 dependencies = [
  "clap",
+ "once_cell",
  "regex",
  "reqwest",
  "semver",
