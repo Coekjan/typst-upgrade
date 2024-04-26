@@ -8,13 +8,19 @@ Help you to upgrade your Typst Packages.
 
 ## Usage
 
-To detect the upgradeable packages in your typst project, run the following command (assuming `main.typ` is the entry point of your project):
+To upgrade your typst-package dependencies, you can use the following command (assuming your project located in `/path/to/your/project`):
 
 ```console
-$ typst-upgrade main.typ -d
+$ typst-upgrade /path/to/your/project
 ```
 
-> dry-run (`-d` or `--dry-run`) is required now since in-place upgrade is not implemented yet
+Or you can change the current directory to your project directory and run the following command:
+
+```console
+$ typst-upgrade
+```
+
+For more cli options, use `typst-upgrade --help`.
 
 ## License
 
