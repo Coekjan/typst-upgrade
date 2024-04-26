@@ -33,8 +33,7 @@ fn main() {
         .entries
         .unwrap_or(vec![env::current_dir().expect("Cannot get current dir")])
         .iter()
-        .map(find_all_typst_files)
-        .flatten()
+        .flat_map(find_all_typst_files)
         .collect::<Vec<_>>();
 
     typst_files.sort_unstable();
