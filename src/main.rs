@@ -1,127 +1,107 @@
 use std::{
-    collections::{HashMap, VecDeque},
-    fs,
+    env, fs,
     path::{Path, PathBuf},
-    str::FromStr,
 };
 
 use clap::Parser;
-use typst_syntax::{
-    ast::{Expr, ModuleImport},
-    SyntaxKind, SyntaxNode,
-};
 
-use crate::typstdep::{TypstDep, TypstDepUpgrader};
+use crate::upgrade::TypstNodeUpgrader;
 
 mod typstdep;
+mod upgrade;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long)]
+    #[arg(short, long, help = "Dry run without editing files")]
     dry_run: bool,
 
-    #[arg(short, long)]
+    #[arg(short, long, help = "Allow incompatible upgrades")]
     incompatible: bool,
 
-    #[arg(value_name = "TYPST_ENTRY_FILE")]
-    entry: PathBuf,
-
-    #[arg(short, long)]
+    #[arg(short, long, help = "Print more information")]
     verbose: bool,
+
+    #[arg(value_name = "TYPST_ENTRY_PATHS")]
+    entries: Option<Vec<PathBuf>>,
 }
 
 fn main() {
     let args = Cli::parse();
 
-    fn find_all_module_import(node: &SyntaxNode) -> Vec<SyntaxNode> {
-        let mut mods = Vec::new();
+    let mut typst_files = args
+        .entries
+        .unwrap_or(vec![env::current_dir().expect("Cannot get current dir")])
+        .iter()
+        .map(find_all_typst_files)
+        .flatten()
+        .collect::<Vec<_>>();
 
-        fn find_module_import(node: &SyntaxNode, result: &mut Vec<SyntaxNode>) {
-            if matches!(node.kind(), SyntaxKind::ModuleImport) {
-                result.push(node.clone());
-            }
+    typst_files.sort_unstable();
+    typst_files.dedup();
 
-            for child in node.children() {
-                find_module_import(child, result);
-            }
-        }
+    let typst_files = typst_files;
 
-        find_module_import(node, &mut mods);
-        mods
-    }
-
-    let entry = fs::canonicalize(args.entry).unwrap();
-    if args.verbose {
-        eprintln!("Start to find deps from: {:?}", entry);
-    }
-
-    let mut deps: HashMap<PathBuf, Vec<TypstDep>> = HashMap::new();
-    let mut files = VecDeque::new();
-    files.push_back(entry);
-
-    while let Some(file) = files.pop_front() {
-        let tree = typst_syntax::parse(&fs::read_to_string(&file).unwrap());
-
-        let module_imports = find_all_module_import(&tree);
-
-        for mod_import in module_imports
-            .iter()
-            .map(|node| node.cast::<ModuleImport>().unwrap())
-        {
-            match mod_import.source() {
-                Expr::Str(s) => {
-                    let source = s.get();
-                    if let Ok(dep) = TypstDep::from_str(&source) {
-                        if args.verbose {
-                            eprintln!("Found dependency: {}", dep);
-                        }
-                        deps.entry(file.clone()).or_default().push(dep);
-                    } else {
-                        let path = file
-                            .parent()
-                            .unwrap()
-                            .join(PathBuf::from_str(&source).unwrap());
-                        if Path::new(&path).exists() {
-                            if args.verbose {
-                                eprintln!("Found module {:?} at: {:?}", source, path);
-                            }
-                            files.push_back(fs::canonicalize(path).unwrap());
-                        } else {
-                            eprintln!("Cannot find module {:?} at: {:?}", source, path);
-                        }
-                    }
-                }
-                other => panic!("non-string module import: {:?}", other),
-            }
-        }
-    }
-
-    if args.verbose {
-        eprintln!("Start to detect upgradable dependencies");
-    }
-
-    let mut upgraders: HashMap<TypstDep, TypstDepUpgrader> = HashMap::new();
-    for dep in deps.values().flatten() {
-        if !upgraders.contains_key(dep) {
-            upgraders.insert(dep.clone(), dep.upgrade());
-        }
-    }
-
-    for (file, dep) in deps.iter() {
-        println!("{}:", file.display());
-        for d in dep {
-            print!("  {}", d);
-            if let Some(upgrader) = upgraders.get(d) {
-                match upgrader.next(!args.incompatible) {
-                    Some(next) => println!(" -> {}", next),
-                    None => println!(" -> (already latest)"),
+    for file in &typst_files {
+        let ext = file.extension().unwrap();
+        let content = fs::read_to_string(file).expect("Cannot read file");
+        let tree = if ext == "typ" || ext == "typst" {
+            typst_syntax::parse(&content)
+        } else if ext == "typc" {
+            typst_syntax::parse_code(&content)
+        } else {
+            panic!("Unknown file extension of: {}", file.display());
+        };
+        println!("Checking {}", file.display());
+        let result = TypstNodeUpgrader::new(&tree, args.verbose, !args.incompatible).convert();
+        if tree != result {
+            let old = tree.into_text();
+            let new = result.into_text();
+            for diff in diff::lines(&old, &new) {
+                match diff {
+                    diff::Result::Left(l) => println!("  - {}", l),
+                    diff::Result::Right(r) => println!("  + {}", r),
+                    _ => (),
                 }
             }
+            if !args.dry_run {
+                println!("Updating {}", file.display());
+                fs::write(file, new.to_string()).expect("Cannot write file");
+            }
         }
     }
+}
 
-    if !args.dry_run {
-        todo!("Edit files with new dependencies")
+fn find_all_typst_files(path: impl AsRef<Path>) -> Vec<PathBuf> {
+    fn find_all_typst_files_inner(path: impl AsRef<Path>) -> Option<Vec<PathBuf>> {
+        let mut result = Vec::new();
+        let path = path.as_ref();
+
+        if !path.exists() {
+            return None;
+        }
+
+        if path.is_dir() {
+            for file in fs::read_dir(path).ok()? {
+                let Ok(file) = file else {
+                    continue;
+                };
+                if let Some(files) = find_all_typst_files_inner(file.path()) {
+                    result.extend(files);
+                }
+            }
+        } else if path.is_symlink() {
+            result.extend(find_all_typst_files_inner(fs::read_link(path).ok()?)?);
+        } else if path.is_file() {
+            if matches!(path.extension()?.to_str()?, "typ" | "typst" | "typc") {
+                result.push(path.to_path_buf());
+            }
+        } else {
+            panic!("Unknown file type: {}", path.display());
+        }
+
+        Some(result)
     }
+
+    find_all_typst_files_inner(path).unwrap_or_default()
 }
