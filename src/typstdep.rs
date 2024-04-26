@@ -94,6 +94,10 @@ impl TypstDep {
             };
         }
 
+        if self.namespace != "preview" {
+            panic!("Unknown namespace {} for package {}", self.namespace, self);
+        }
+
         let ver: Vec<_> = TYPST_PACKAGE_META
             .get(&self.name)
             .expect("Package not found")
