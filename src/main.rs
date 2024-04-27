@@ -1,5 +1,5 @@
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -23,7 +23,7 @@ struct Cli {
     verbose: bool,
 
     #[arg(value_name = "TYPST_ENTRY_PATHS")]
-    entries: Option<Vec<PathBuf>>,
+    entries: Vec<PathBuf>,
 }
 
 fn main() {
@@ -31,7 +31,6 @@ fn main() {
 
     let mut typst_files = args
         .entries
-        .unwrap_or(vec![env::current_dir().expect("Cannot get current dir")])
         .iter()
         .flat_map(find_all_typst_files)
         .collect::<Vec<_>>();
