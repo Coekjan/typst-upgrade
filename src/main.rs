@@ -7,6 +7,8 @@ use clap::Parser;
 
 use crate::upgrade::TypstNodeUpgrader;
 
+#[macro_use]
+mod term;
 mod typstdep;
 mod upgrade;
 
@@ -27,6 +29,10 @@ struct Cli {
 }
 
 fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        error!("Fatal": "{}", info);
+    }));
+
     let args = Cli::parse();
 
     let mut typst_files = args
@@ -50,20 +56,24 @@ fn main() {
         } else {
             panic!("Unknown file extension of: {}", file.display());
         };
-        println!("Checking {}", file.display());
+        info!("Checking": "{}", file.display());
         let result = TypstNodeUpgrader::new(&tree, args.verbose, !args.incompatible).convert();
         if tree != result {
             let old = tree.into_text();
             let new = result.into_text();
             for diff in diff::lines(&old, &new) {
                 match diff {
-                    diff::Result::Left(l) => println!("  - {}", l),
-                    diff::Result::Right(r) => println!("  + {}", r),
+                    diff::Result::Left(l) => {
+                        diff!(del "{}", l);
+                    }
+                    diff::Result::Right(r) => {
+                        diff!(add "{}", r);
+                    }
                     _ => (),
                 }
             }
             if !args.dry_run {
-                println!("Updating {}", file.display());
+                info!("Updating": "{}", file.display());
                 fs::write(file, new.to_string()).expect("Cannot write file");
             }
         }
@@ -95,10 +105,14 @@ fn find_all_typst_files(path: impl AsRef<Path>) -> Vec<PathBuf> {
                 result.push(path.to_path_buf());
             }
         } else {
-            panic!("Unknown file type: {}", path.display());
+            error!("Unknown file type: {}", path.display());
         }
 
         Some(result)
+    }
+
+    if !path.as_ref().exists() {
+        panic!("Path does not exist: {}", path.as_ref().display());
     }
 
     find_all_typst_files_inner(path).unwrap_or_default()

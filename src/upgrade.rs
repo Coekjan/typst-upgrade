@@ -35,7 +35,7 @@ impl<'a> TypstNodeUpgrader<'a> {
         if let Some(module_import) = node.cast::<ModuleImport>() {
             let Expr::Str(s) = module_import.source() else {
                 if self.verbose {
-                    eprintln!(
+                    warn!(
                         "Cannot upgrade non-string module import: {}",
                         node.clone().into_text(),
                     );
@@ -47,13 +47,13 @@ impl<'a> TypstNodeUpgrader<'a> {
             };
             if dep.is_local() {
                 if self.verbose {
-                    eprintln!("Local package {dep} is not upgradable");
+                    warn!("NOTE": "Local package {dep} is not upgradable");
                 }
                 return node.clone();
             }
             let Some(next) = TypstDepUpgrader::build(&dep).next(self.compatible) else {
                 if self.verbose {
-                    eprintln!("Package {dep} is already up-to-date");
+                    warn!("NOTE": "Package {dep} is already up-to-date");
                 }
                 return node.clone();
             };
