@@ -22,7 +22,7 @@ struct Cli {
     #[arg(short, long, help = "Print more information")]
     verbose: bool,
 
-    #[arg(value_name = "TYPST_ENTRY_PATHS")]
+    #[arg(value_name = "TYPST_ENTRY_PATHS", required = true)]
     entries: Vec<PathBuf>,
 }
 
