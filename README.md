@@ -14,13 +14,24 @@ To upgrade your typst-package dependencies, you can use the following command (a
 $ typst-upgrade /path/to/your/project
 ```
 
-Or you can change the current directory to your project directory and run the following command:
+See `typst-upgrade --help` for more information:
 
 ```console
-$ typst-upgrade
-```
+$ typst-upgrade --help
+A tool to upgrade typst packages
 
-For more cli options, use `typst-upgrade --help`.
+Usage: typst-upgrade [OPTIONS] <TYPST_ENTRY_PATHS>...
+
+Arguments:
+  <TYPST_ENTRY_PATHS>...  
+
+Options:
+  -d, --dry-run       Dry run without editing files
+  -i, --incompatible  Allow incompatible upgrades
+  -v, --verbose       Print more information
+  -h, --help          Print help
+  -V, --version       Print version
+```
 
 ## License
 
