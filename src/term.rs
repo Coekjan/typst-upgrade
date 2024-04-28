@@ -1,42 +1,56 @@
+use std::fmt::Arguments;
+use std::io::Write;
+
+use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
+
+pub fn term_println(
+    mut stream: StandardStream,
+    color: Color,
+    whole_line: bool,
+    motion: &str,
+    args: Arguments,
+) -> Result<(), std::io::Error> {
+    stream
+        .set_color(ColorSpec::new().set_bold(true).set_fg(Some(color)))
+        .and_then(|_| {
+            write!(&mut stream, "{:>12} ", motion)?;
+            if whole_line {
+                stream.set_color(ColorSpec::new().set_reset(true).set_fg(Some(color)))
+            } else {
+                stream.set_color(ColorSpec::new().set_reset(true))
+            }?;
+            writeln!(&mut stream, "{}", args)
+        })
+}
+
 #[macro_export]
 macro_rules! __term_println {
     (@COLOR_MOTION $stream:ident, $color:ident, $motion:literal, $($args:tt)*) => {
-        use std::io::{IsTerminal, Write};
-        use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+        use std::io::IsTerminal;
+        use termcolor::{Color, ColorChoice, StandardStream};
 
-        let mut stream = StandardStream::$stream(if std::io::stdin().is_terminal() {
+        let stream = StandardStream::$stream(if std::io::$stream().is_terminal() {
             ColorChoice::Auto
         } else {
             ColorChoice::Never
         });
-        stream
-            .set_color(ColorSpec::new().set_bold(true).set_fg(Some(Color::$color)))
-            .and_then(|_| {
-                write!(&mut stream, "{:>12} ", $motion)?;
-                stream.set_color(ColorSpec::new().set_reset(true))?;
-                writeln!(&mut stream, $($args)*)
-            })
-            .expect("Cannot write to stdout");
+
+        $crate::term::term_println(stream, Color::$color, false, $motion, format_args!($($args)*))
+            .expect(&format!("Cannot write to {}", stringify!($stream)));
     };
 
     (@COLOR_WHOLE_LINE $stream:ident, $color:ident, $motion:literal, $($args:tt)*) => {
-        use std::io::{IsTerminal, Write};
-        use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+        use std::io::IsTerminal;
+        use termcolor::{Color, ColorChoice, StandardStream};
 
-        let mut stream = StandardStream::$stream(if std::io::stdin().is_terminal() {
+        let stream = StandardStream::$stream(if std::io::$stream().is_terminal() {
             ColorChoice::Auto
         } else {
             ColorChoice::Never
         });
-        stream
-            .set_color(ColorSpec::new().set_bold(true).set_fg(Some(Color::$color)))
-            .and_then(|_| {
-                write!(&mut stream, "{:>12} ", $motion)?;
-                stream.set_color(ColorSpec::new().set_reset(true).set_fg(Some(Color::$color)))?;
-                writeln!(&mut stream, $($args)*)
-            })
-            .expect("Cannot write to stdout");
 
+        $crate::term::term_println(stream, Color::$color, true, $motion, format_args!($($args)*))
+            .expect(&format!("Cannot write to {}", stringify!($stream)));
     };
 }
 
