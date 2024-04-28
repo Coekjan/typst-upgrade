@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::Parser;
+use clap::{ColorChoice, Parser};
 
 use crate::upgrade::TypstNodeUpgrader;
 
@@ -21,6 +21,9 @@ struct Cli {
     #[arg(short, long, help = "Allow incompatible upgrades")]
     incompatible: bool,
 
+    #[arg(long, default_value_t = ColorChoice::Auto)]
+    color: ColorChoice,
+
     #[arg(short, long, help = "Print more information")]
     verbose: bool,
 
@@ -34,6 +37,8 @@ fn main() {
     }));
 
     let args = Cli::parse();
+
+    term::init(args.color);
 
     let mut typst_files = args
         .entries

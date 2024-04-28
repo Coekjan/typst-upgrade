@@ -1,7 +1,24 @@
 use std::fmt::Arguments;
 use std::io::Write;
+use std::sync::OnceLock;
 
-use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
+static COLOR_CHOICE: OnceLock<ColorChoice> = OnceLock::new();
+
+pub fn init(color: clap::ColorChoice) {
+    COLOR_CHOICE
+        .set(match color {
+            clap::ColorChoice::Auto => ColorChoice::Auto,
+            clap::ColorChoice::Always => ColorChoice::Always,
+            clap::ColorChoice::Never => ColorChoice::Never,
+        })
+        .unwrap();
+}
+
+pub fn color_choice() -> ColorChoice {
+    *COLOR_CHOICE.get().unwrap()
+}
 
 pub fn term_println(
     mut stream: StandardStream,
@@ -23,14 +40,13 @@ pub fn term_println(
         })
 }
 
-#[macro_export]
 macro_rules! __term_println {
     (@COLOR_MOTION $stream:ident, $color:ident, $motion:literal, $($args:tt)*) => {
         use std::io::IsTerminal;
         use termcolor::{Color, ColorChoice, StandardStream};
 
         let stream = StandardStream::$stream(if std::io::$stream().is_terminal() {
-            ColorChoice::Auto
+            $crate::term::color_choice()
         } else {
             ColorChoice::Never
         });
@@ -44,7 +60,7 @@ macro_rules! __term_println {
         use termcolor::{Color, ColorChoice, StandardStream};
 
         let stream = StandardStream::$stream(if std::io::$stream().is_terminal() {
-            ColorChoice::Auto
+            $crate::term::color_choice()
         } else {
             ColorChoice::Never
         });
