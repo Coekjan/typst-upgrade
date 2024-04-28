@@ -26,11 +26,13 @@ Arguments:
   <TYPST_ENTRY_PATHS>...  
 
 Options:
-  -d, --dry-run       Dry run without editing files
-  -i, --incompatible  Allow incompatible upgrades
-  -v, --verbose       Print more information
-  -h, --help          Print help
-  -V, --version       Print version
+  -d, --dry-run        Dry run without editing files
+  -i, --incompatible   Allow incompatible upgrades
+      --color <COLOR>  [default: auto] [possible values: auto, always, never]
+      --diff <DIFF>    [default: short] [possible values: short, full, none]
+  -v, --verbose        Print more information
+  -h, --help           Print help
+  -V, --version        Print version
 ```
 
 ## License
