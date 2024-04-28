@@ -4,11 +4,13 @@ use std::{
 };
 
 use clap::{ColorChoice, Parser};
+use diffline::DiffChoice;
 
 use crate::upgrade::TypstNodeUpgrader;
 
 #[macro_use]
 mod term;
+mod diffline;
 mod typstdep;
 mod upgrade;
 
@@ -23,6 +25,9 @@ struct Cli {
 
     #[arg(long, default_value_t = ColorChoice::Auto)]
     color: ColorChoice,
+
+    #[arg(long, default_value_t = DiffChoice::Short)]
+    diff: DiffChoice,
 
     #[arg(short, long, help = "Print more information")]
     verbose: bool,
@@ -39,6 +44,7 @@ fn main() {
     let args = Cli::parse();
 
     term::init(args.color);
+    diffline::init(args.diff);
 
     let mut typst_files = args
         .entries
@@ -66,17 +72,7 @@ fn main() {
         if tree != result {
             let old = tree.into_text();
             let new = result.into_text();
-            for diff in diff::lines(&old, &new) {
-                match diff {
-                    diff::Result::Left(l) => {
-                        diff!(del "{}", l);
-                    }
-                    diff::Result::Right(r) => {
-                        diff!(add "{}", r);
-                    }
-                    _ => (),
-                }
-            }
+            diffline::show(&old, &new);
             if !args.dry_run {
                 info!("Updating": "{}", file.display());
                 fs::write(file, new.to_string()).expect("Cannot write file");

@@ -22,17 +22,17 @@ pub fn color_choice() -> ColorChoice {
 
 pub fn term_println(
     mut stream: StandardStream,
-    color: Color,
+    color: Option<Color>,
     whole_line: bool,
     motion: &str,
     args: Arguments,
 ) -> Result<(), std::io::Error> {
     stream
-        .set_color(ColorSpec::new().set_bold(true).set_fg(Some(color)))
+        .set_color(ColorSpec::new().set_bold(true).set_fg(color))
         .and_then(|_| {
             write!(&mut stream, "{:>12} ", motion)?;
             if whole_line {
-                stream.set_color(ColorSpec::new().set_reset(true).set_fg(Some(color)))
+                stream.set_color(ColorSpec::new().set_reset(true).set_fg(color))
             } else {
                 stream.set_color(ColorSpec::new().set_reset(true))
             }?;
@@ -41,9 +41,9 @@ pub fn term_println(
 }
 
 macro_rules! __term_println {
-    (@COLOR_MOTION $stream:ident, $color:ident, $motion:literal, $($args:tt)*) => {
+    (@COLOR_MOTION $stream:ident, $color:expr, $motion:literal, $($args:tt)*) => {
         use std::io::IsTerminal;
-        use termcolor::{Color, ColorChoice, StandardStream};
+        use termcolor::{ColorChoice, StandardStream};
 
         let stream = StandardStream::$stream(if std::io::$stream().is_terminal() {
             $crate::term::color_choice()
@@ -51,13 +51,13 @@ macro_rules! __term_println {
             ColorChoice::Never
         });
 
-        $crate::term::term_println(stream, Color::$color, false, $motion, format_args!($($args)*))
+        $crate::term::term_println(stream, $color, false, $motion, format_args!($($args)*))
             .expect(&format!("Cannot write to {}", stringify!($stream)));
     };
 
-    (@COLOR_WHOLE_LINE $stream:ident, $color:ident, $motion:literal, $($args:tt)*) => {
+    (@COLOR_WHOLE_LINE $stream:ident, $color:expr, $motion:literal, $($args:tt)*) => {
         use std::io::IsTerminal;
-        use termcolor::{Color, ColorChoice, StandardStream};
+        use termcolor::{ColorChoice, StandardStream};
 
         let stream = StandardStream::$stream(if std::io::$stream().is_terminal() {
             $crate::term::color_choice()
@@ -65,7 +65,7 @@ macro_rules! __term_println {
             ColorChoice::Never
         });
 
-        $crate::term::term_println(stream, Color::$color, true, $motion, format_args!($($args)*))
+        $crate::term::term_println(stream, $color, true, $motion, format_args!($($args)*))
             .expect(&format!("Cannot write to {}", stringify!($stream)));
     };
 }
@@ -73,7 +73,7 @@ macro_rules! __term_println {
 #[macro_export]
 macro_rules! info {
     ($motion:literal: $($args:tt)*) => {
-        __term_println!(@COLOR_MOTION stdout, Green, $motion, $($args)*)
+        __term_println!(@COLOR_MOTION stdout, Some(termcolor::Color::Green), $motion, $($args)*)
     };
     ($($args:tt)*) => {
         info!("INFO": $($args)*)
@@ -83,7 +83,7 @@ macro_rules! info {
 #[macro_export]
 macro_rules! warn {
     ($motion:literal: $($args:tt)*) => {
-        __term_println!(@COLOR_MOTION stderr, Yellow, $motion, $($args)*)
+        __term_println!(@COLOR_MOTION stderr, Some(termcolor::Color::Yellow), $motion, $($args)*)
     };
     ($($args:tt)*) => {
         warn!("WARN": $($args)*)
@@ -93,7 +93,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! error {
     ($motion:literal: $($args:tt)*) => {
-        __term_println!(@COLOR_MOTION stderr, Red, $motion, $($args)*)
+        __term_println!(@COLOR_MOTION stderr, Some(termcolor::Color::Red), $motion, $($args)*)
     };
     ($($args:tt)*) => {
         error!("ERROR": $($args)*)
@@ -103,9 +103,12 @@ macro_rules! error {
 #[macro_export]
 macro_rules! diff {
     (del $($args:tt)*) => {
-        __term_println!(@COLOR_WHOLE_LINE stdout, Red, "-", $($args)*)
+        __term_println!(@COLOR_WHOLE_LINE stdout, Some(termcolor::Color::Red), "-", $($args)*)
     };
     (add $($args:tt)*) => {
-        __term_println!(@COLOR_WHOLE_LINE stdout, Green, "+", $($args)*)
+        __term_println!(@COLOR_WHOLE_LINE stdout, Some(termcolor::Color::Green), "+", $($args)*)
+    };
+    ($($args:tt)*) => {
+        __term_println!(@COLOR_WHOLE_LINE stdout, None, "", $($args)*)
     };
 }
