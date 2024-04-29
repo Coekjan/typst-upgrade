@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use once_cell::sync::Lazy;
 use semver::Version;
@@ -13,14 +13,26 @@ pub struct TypstNodeUpgrader<'a> {
     root: &'a SyntaxNode,
     verbose: bool,
     compatible: bool,
+    upgrader_builder: Box<dyn Fn(&TypstDep) -> TypstDepUpgrader>,
 }
 
 impl<'a> TypstNodeUpgrader<'a> {
+    #[cfg(not(tarpaulin_include))]
     pub fn new(root: &'a SyntaxNode, verbose: bool, compatible: bool) -> Self {
+        Self::new_with_upgrader_builder(root, verbose, compatible, TypstDepUpgrader::build)
+    }
+
+    fn new_with_upgrader_builder(
+        root: &'a SyntaxNode,
+        verbose: bool,
+        compatible: bool,
+        upgrader_builder: impl Fn(&TypstDep) -> TypstDepUpgrader + 'static,
+    ) -> Self {
         Self {
             root,
             verbose,
             compatible,
+            upgrader_builder: Box::new(upgrader_builder),
         }
     }
 
@@ -51,7 +63,7 @@ impl<'a> TypstNodeUpgrader<'a> {
                 }
                 return node.clone();
             }
-            let Some(next) = TypstDepUpgrader::build(&dep).next(self.compatible) else {
+            let Some(next) = (self.upgrader_builder)(&dep).next(self.compatible) else {
                 if self.verbose {
                     warn!("NOTE": "Package {dep} is already up-to-date");
                 }
@@ -88,20 +100,8 @@ struct TypstDepUpgrader {
     ver: Vec<TypstDep>,
 }
 
-impl Display for TypstDepUpgrader {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} -> [", self.dep)?;
-        for (i, ver) in self.ver.iter().enumerate() {
-            if i > 0 {
-                write!(f, ",")?;
-            }
-            write!(f, " {}", ver.version())?;
-        }
-        write!(f, " ]")
-    }
-}
-
 impl TypstDepUpgrader {
+    #[cfg(not(tarpaulin_include))]
     fn build(dep: &TypstDep) -> Self {
         static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<Version>>> = Lazy::new(|| {
             let raw_meta = reqwest::blocking::get("https://packages.typst.org/preview/index.json")
@@ -184,9 +184,14 @@ impl TypstDepUpgrader {
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
+    use std::{fs, str::FromStr};
+
+    use paste::paste;
+    use semver::Version;
 
     use crate::{typstdep::TypstDep, upgrade::TypstDepUpgrader};
+
+    use super::TypstNodeUpgrader;
 
     #[test]
     fn next() {
@@ -247,5 +252,121 @@ mod test {
         let dep = TypstDep::from_str("@local/package:1.2.3").unwrap();
         assert!(dep.is_local());
         TypstDepUpgrader::build_with_query(&dep, |_| -> Option<Vec<_>> { None });
+    }
+
+    #[test]
+    fn upgrader_build() {
+        let dep = TypstDep::from_str("@preview/pack1:0.1.0").unwrap();
+        let upgrader = TypstDepUpgrader::build_with_query(&dep, mock_query);
+        assert_eq!(
+            upgrader.next(true).unwrap().to_string(),
+            "@preview/pack1:0.2.2"
+        );
+        assert_eq!(
+            upgrader.next(false).unwrap().to_string(),
+            "@preview/pack1:1.1.1"
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn should_not_convert_illegal_root() {
+        let root = typst_syntax::parse_math("$1 + 2$");
+        TypstNodeUpgrader::new(&root, false, true).convert();
+    }
+
+    macro_rules! ex_test {
+        ($(#[$attr:meta])* $name:ident / $ext:literal) => {
+            paste! {
+                #[test]
+                $(#[$attr])*
+                fn [<ex_upgrade_$name>]() {
+                    let entry = fs::read_to_string(&format!(
+                        "{}/tests/{}/entry.{}",
+                        env!("CARGO_MANIFEST_DIR"),
+                        stringify!($name),
+                        $ext,
+                    )).unwrap();
+
+                    let old_tree = if matches!($ext, "typ" | "typst") {
+                        typst_syntax::parse(&entry)
+                    } else {
+                        typst_syntax::parse_code(&entry)
+                    };
+                    let new_compat = TypstNodeUpgrader::new_with_upgrader_builder(
+                        &old_tree,
+                        true,
+                        true,
+                        mock_upgrader_builder,
+                    ).convert();
+                    let res_compat = fs::read_to_string(&format!(
+                        "{}/tests/{}/entry.compat.{}",
+                        env!("CARGO_MANIFEST_DIR"),
+                        stringify!($name),
+                        $ext,
+                    )).unwrap();
+                    assert_eq!(new_compat.into_text(), res_compat);
+
+                    let new_incompat = TypstNodeUpgrader::new_with_upgrader_builder(
+                        &old_tree,
+                        true,
+                        false,
+                        mock_upgrader_builder,
+                    ).convert();
+                    let res_incompat = fs::read_to_string(&format!(
+                        "{}/tests/{}/entry.incompat.{}",
+                        env!("CARGO_MANIFEST_DIR"),
+                        stringify!($name),
+                        $ext,
+                    )).unwrap();
+                    assert_eq!(new_incompat.into_text(), res_incompat);
+                }
+            }
+        };
+        ($($(#[$attr:meta])* $name:ident / $ext:literal, )*) => {
+            $( ex_test!($(#[$attr])* $name / $ext); )*
+        };
+    }
+
+    ex_test! {
+        normal1 / "typ",
+        normal2 / "typst",
+        normal3 / "typc",
+        #[should_panic] exception1 / "typ",
+        exception2 / "typ",
+    }
+
+    fn mock_upgrader_builder(dep: &TypstDep) -> TypstDepUpgrader {
+        TypstDepUpgrader::build_with_query(dep, mock_query)
+    }
+
+    fn mock_query(name: &str) -> Option<Vec<Version>> {
+        match name {
+            "pack1" => Some(vec![
+                Version::parse("0.1.0").unwrap(),
+                Version::parse("0.1.1").unwrap(),
+                Version::parse("0.2.0").unwrap(),
+                Version::parse("0.2.1").unwrap(),
+                Version::parse("0.2.2").unwrap(),
+                Version::parse("1.0.0").unwrap(),
+                Version::parse("1.0.1").unwrap(),
+                Version::parse("1.1.0").unwrap(),
+                Version::parse("1.1.1").unwrap(),
+            ]),
+            "pack2" => Some(vec![
+                Version::parse("0.1.0").unwrap(),
+                Version::parse("1.0.0").unwrap(),
+                Version::parse("1.1.0").unwrap(),
+                Version::parse("2.0.0").unwrap(),
+            ]),
+            "pack3" => Some(vec![
+                Version::parse("0.1.0").unwrap(),
+                Version::parse("0.2.0").unwrap(),
+                Version::parse("1.0.0").unwrap(),
+                Version::parse("2.0.0").unwrap(),
+                Version::parse("3.0.0").unwrap(),
+            ]),
+            _ => None,
+        }
     }
 }

@@ -17,9 +17,10 @@ pub fn init(color: clap::ColorChoice) {
 }
 
 pub fn color_choice() -> ColorChoice {
-    *COLOR_CHOICE.get().unwrap()
+    *COLOR_CHOICE.get().unwrap_or(&ColorChoice::Auto)
 }
 
+#[cfg(not(tarpaulin_include))]
 pub fn term_println(
     mut stream: StandardStream,
     color: Option<Color>,
@@ -111,4 +112,25 @@ macro_rules! diff {
     ($($args:tt)*) => {
         __term_println!(@COLOR_WHOLE_LINE stdout, None, "", $($args)*)
     };
+}
+
+#[cfg(test)]
+mod test {
+    use termcolor::ColorChoice;
+
+    #[test]
+    fn init() {
+        super::init(clap::ColorChoice::Auto);
+        assert_eq!(super::color_choice(), ColorChoice::Auto);
+
+        assert!(std::panic::catch_unwind(|| {
+            super::init(clap::ColorChoice::Always);
+        })
+        .is_err());
+
+        assert!(std::panic::catch_unwind(|| {
+            super::init(clap::ColorChoice::Never);
+        })
+        .is_err());
+    }
 }

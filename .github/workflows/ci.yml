@@ -44,5 +44,14 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Test
-        run: cargo test --release
+      - name: Install Tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Test with Coverage
+        run: cargo tarpaulin --out xml
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        if: github.ref == 'refs/heads/master'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

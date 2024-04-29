@@ -36,6 +36,7 @@ struct Cli {
     entries: Vec<PathBuf>,
 }
 
+#[cfg(not(tarpaulin_include))]
 fn main() {
     std::panic::set_hook(Box::new(|info| {
         error!("Fatal": "{}", info);
@@ -117,4 +118,47 @@ fn find_all_typst_files(path: impl AsRef<Path>) -> Vec<PathBuf> {
     }
 
     find_all_typst_files_inner(path).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod test {
+    use std::path::Path;
+
+    use crate::find_all_typst_files;
+
+    #[test]
+    #[should_panic]
+    fn should_not_find_typst_files_in_non_existent_dir() {
+        find_all_typst_files("non-existent-dir");
+    }
+
+    #[test]
+    fn should_find_typst_files_in_proj() {
+        let path = Path::new(&format!("{}", env!("CARGO_MANIFEST_DIR")))
+            .join("tests")
+            .join("proj");
+        let files = find_all_typst_files(&path);
+        assert!(files.iter().all(|f| f.exists() && f.is_file()));
+        assert!(files.iter().all(|f| f
+            .extension()
+            .is_some_and(|ext| matches!(ext.to_str().unwrap(), "typ" | "typst" | "typc"))));
+
+        // See `${PROJECT_ROOT}/tests/proj/` for the directory structure
+        for dir in [
+            "lib1",
+            "lib2",
+            "lib3",
+            "ｌｉｂ4", // for utf-8 path testing
+            "sublib1",
+        ] {
+            assert!(files.iter().any(|f| f
+                .parent()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                == dir));
+        }
+    }
 }

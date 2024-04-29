@@ -79,8 +79,19 @@ mod test {
 
         let dep = dep.unwrap();
         assert_eq!(dep.to_string(), package);
-        assert_eq!(dep.namespace, "preview");
-        assert_eq!(dep.name, "package");
-        assert_eq!(dep.version.to_string(), "1.2.3");
+        assert_eq!(dep.namespace(), "preview");
+        assert_eq!(dep.name(), "package");
+        assert_eq!(dep.version().to_string(), "1.2.3");
+    }
+
+    #[test]
+    fn upgrade() {
+        let package = "@preview/package:1.2.3";
+
+        let dep = TypstDep::from_str(package).unwrap();
+        let new = dep.upgrade_to("2.0.0".parse().unwrap());
+
+        assert_eq!(new.version().to_string(), "2.0.0");
+        assert_eq!(new.to_string(), "@preview/package:2.0.0");
     }
 }
