@@ -35,6 +35,16 @@ Options:
   -V, --version        Print version
 ```
 
+## Installation
+
+You can install `typst-upgrade` via `cargo`:
+
+```console
+$ cargo install typst-upgrade
+```
+
+Or you can download the prebuilt binaries from the [release page](https://github.com/Coekjan/typst-upgrade/releases).
+
 ## License
 
 Licensed under the MIT License.
