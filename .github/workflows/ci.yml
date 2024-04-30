@@ -121,13 +121,15 @@ jobs:
           sudo apt-get install gcc-arm-linux-gnueabihf
 
       - name: Build Binary
-        run: cargo build --release --target ${{ matrix.rust-target }}
+        run: |
+          cargo build --release --target ${{ matrix.rust-target }}
+          cp target/${{ matrix.rust-target }}/release/typst-upgrade${{ fromJSON('["", ".exe"]')[matrix.platform == 'win32'] }} typst-upgrade-${{ env.target }}${{ fromJSON('["", ".exe"]')[matrix.platform == 'win32'] }}
 
       - name: Upload Binary Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: typst-upgrade-${{ env.target }}
-          path: target/${{ matrix.rust-target }}/release/typst-upgrade${{ fromJSON('["", ".exe"]')[matrix.platform == 'win32'] }}
+          path: typst-upgrade-${{ env.target }}${{ fromJSON('["", ".exe"]')[matrix.platform == 'win32'] }}
 
   release:
     runs-on: ubuntu-latest
