@@ -1,4 +1,3 @@
-# steal from https://github.com/Enter-tainer/typstyle/blob/master/.github/workflows/release.yml
 name: CI
 
 on:
@@ -6,10 +5,6 @@ on:
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
-
-env:
-  CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-  CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
 
 jobs:
   test:
@@ -36,7 +31,7 @@ jobs:
         run: cargo tarpaulin --workspace --timeout 120 --out xml
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v4
         if: github.ref == 'refs/heads/master'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -61,77 +56,63 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            rust-target: x86_64-pc-windows-msvc
-            platform: win32
-            arch: x64
-          - os: windows-latest
-            rust-target: aarch64-pc-windows-msvc
-            platform: win32
-            arch: arm64
-          - os: ubuntu-20.04
-            rust-target: x86_64-unknown-linux-gnu
-            platform: linux
-            arch: x64
-          - os: ubuntu-20.04
-            rust-target: aarch64-unknown-linux-gnu
-            platform: linux
-            arch: arm64
-          - os: ubuntu-20.04
-            rust-target: arm-unknown-linux-gnueabihf
-            platform: linux
-            arch: armhf
-          - os: macos-11
-            rust-target: x86_64-apple-darwin
-            platform: darwin
-            arch: x64
-          - os: macos-11
-            rust-target: aarch64-apple-darwin
-            platform: darwin
-            arch: arm64
-    name: build (${{ matrix.platform }}-${{ matrix.arch }})
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+          - target: armv7-unknown-linux-musleabi
+            os: ubuntu-latest
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            cross: false
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            cross: false
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+    name: build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    env:
-      target: ${{ matrix.platform }}-${{ matrix.arch }}
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
 
-      - name: rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust-target }}
+          targets: ${{ matrix.target }}
 
-      - name: Install llvm
-        if: matrix.platform == 'linux'
+      - name: Run Cross
+        if: ${{ matrix.cross }}
         run: |
-          sudo apt-get update
-          sudo apt-get install llvm
-      - name: Install AArch64 target toolchain
-        if: matrix.rust-target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc-aarch64-linux-gnu
-      - name: Install ARM target toolchain
-        if: matrix.rust-target == 'arm-unknown-linux-gnueabihf'
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf
+          cargo install cross
+          cross build --release --target ${{ matrix.target }}
 
-      - name: Build Binary
+      - name: Run Cargo
+        if: ${{ !matrix.cross }}
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Create Binary Artifacts
+        shell: bash
         run: |
-          cargo build --release --target ${{ matrix.rust-target }}
-          cp target/${{ matrix.rust-target }}/release/typst-upgrade${{ fromJSON('["", ".exe"]')[matrix.platform == 'win32'] }} typst-upgrade-${{ env.target }}${{ fromJSON('["", ".exe"]')[matrix.platform == 'win32'] }}
+          mkdir artifacts
+          if [ -f target/${{ matrix.target }}/release/typst-upgrade.exe ]; then
+            cp target/${{ matrix.target }}/release/typst-upgrade.exe typst-upgrade-${{ matrix.target }}.exe
+          else
+            cp target/${{ matrix.target }}/release/typst-upgrade typst-upgrade-${{ matrix.target }}
+          fi
 
       - name: Upload Binary Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: typst-upgrade-${{ env.target }}
-          path: typst-upgrade-${{ env.target }}${{ fromJSON('["", ".exe"]')[matrix.platform == 'win32'] }}
+          name: typst-upgrade-${{ matrix.target }}
+          path: typst-upgrade-${{ matrix.target }}*
 
-  release:
+  pre-release:
     runs-on: ubuntu-latest
     needs: [build, test]
     if: success() && startsWith(github.ref, 'refs/tags/')
@@ -140,8 +121,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Publish Crate
-        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish Crate (Dry Run)
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --dry-run
 
       - uses: actions/download-artifact@v4
         with:
