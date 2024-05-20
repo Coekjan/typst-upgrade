@@ -104,8 +104,21 @@ impl TypstDepUpgrader {
     #[cfg(not(tarpaulin_include))]
     fn build(dep: &TypstDep) -> Self {
         static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<Version>>> = Lazy::new(|| {
-            let raw_meta = reqwest::blocking::get("https://packages.typst.org/preview/index.json")
-                .expect("Failed to fetch package metadata")
+            let mut retry_count = 5;
+            let resp = loop {
+                match reqwest::blocking::get("https://packages.typst.org/preview/index.json") {
+                    Ok(resp) => break resp,
+                    Err(_) if retry_count > 0 => {
+                        retry_count -= 1;
+                        warn!(
+                            "Failed to fetch package metadata, retrying... ({} attempts left)",
+                            retry_count,
+                        );
+                    }
+                    Err(_) => panic!("Failed to fetch package metadata"),
+                }
+            };
+            let raw_meta = resp
                 .json::<serde_json::Value>()
                 .expect("Failed to parse package metadata")
                 .as_array()
