@@ -39,7 +39,9 @@ struct Cli {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     std::panic::set_hook(Box::new(|info| {
-        error!("Fatal": "{}", info);
+        if let Some(info) = info.payload().downcast_ref::<&str>() {
+            error!("Fatal": "{}", info);
+        }
     }));
 
     let args = Cli::parse();
