@@ -38,7 +38,7 @@ impl<'a> TypstNodeUpgrader<'a> {
 
     pub fn convert(&self) -> SyntaxNode {
         match self.root.kind() {
-            SyntaxKind::Markup | SyntaxKind::Code => self.convert_recursively(self.root),
+            SyntaxKind::Markup => self.convert_recursively(self.root),
             kind => panic!("Unexpected node kind: {:?}", kind),
         }
     }
@@ -344,7 +344,6 @@ mod test {
     ex_test! {
         normal1 / "typ",
         normal2 / "typst",
-        normal3 / "typc",
         #[should_panic] exception1 / "typ",
         exception2 / "typ",
     }

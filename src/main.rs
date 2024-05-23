@@ -65,8 +65,6 @@ fn main() {
         let content = fs::read_to_string(file).expect("Cannot read file");
         let tree = if ext == "typ" || ext == "typst" {
             typst_syntax::parse(&content)
-        } else if ext == "typc" {
-            typst_syntax::parse_code(&content)
         } else {
             panic!("Unknown file extension of: {}", file.display());
         };
@@ -105,7 +103,7 @@ fn find_all_typst_files(path: impl AsRef<Path>) -> Vec<PathBuf> {
         } else if path.is_symlink() {
             result.extend(find_all_typst_files_inner(fs::read_link(path).ok()?)?);
         } else if path.is_file() {
-            if matches!(path.extension()?.to_str()?, "typ" | "typst" | "typc") {
+            if matches!(path.extension()?.to_str()?, "typ" | "typst") {
                 result.push(path.to_path_buf());
             }
         } else {
@@ -143,7 +141,7 @@ mod test {
         assert!(files.iter().all(|f| f.exists() && f.is_file()));
         assert!(files.iter().all(|f| f
             .extension()
-            .is_some_and(|ext| matches!(ext.to_str().unwrap(), "typ" | "typst" | "typc"))));
+            .is_some_and(|ext| matches!(ext.to_str().unwrap(), "typ" | "typst"))));
 
         // See `${PROJECT_ROOT}/tests/proj/` for the directory structure
         for dir in [
