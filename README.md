@@ -1,7 +1,7 @@
 # Typst Upgrade
 
 [![](https://img.shields.io/crates/v/typst-upgrade
-)](https://crates.io/crates/typst-upgrade) [![](https://img.shields.io/github/license/Coekjan/typst-upgrade
+)](https://crates.io/crates/typst-upgrade) [![](https://img.shields.io/crates/d/typst-upgrade)](https://crates.io/crates/typst-upgrade) [![](https://img.shields.io/github/license/Coekjan/typst-upgrade
 )](https://github.com/Coekjan/typst-upgrade) [![](https://github.com/Coekjan/typst-upgrade/actions/workflows/ci.yml/badge.svg)](https://github.com/Coekjan/typst-upgrade) [![](https://codecov.io/gh/Coekjan/typst-upgrade/graph/badge.svg?token=NV9EOPC4SR)](https://codecov.io/gh/Coekjan/typst-upgrade)
 
 Help you to upgrade your Typst Packages.
