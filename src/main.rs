@@ -134,10 +134,10 @@ mod test {
 
     #[test]
     fn should_find_typst_files_in_proj() {
-        let path = Path::new(&format!("{}", env!("CARGO_MANIFEST_DIR")))
+        let path = Path::new(&env!("CARGO_MANIFEST_DIR").to_string())
             .join("tests")
             .join("proj");
-        let files = find_all_typst_files(&path);
+        let files = find_all_typst_files(path);
         assert!(files.iter().all(|f| f.exists() && f.is_file()));
         assert!(files.iter().all(|f| f
             .extension()
