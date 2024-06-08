@@ -7,23 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  pre-test:
-    permissions:
-      actions: write
-      contents: read
-    runs-on: ubuntu-latest
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5
-        with:
-          cancel_others: "true"
-
   test:
     runs-on: ubuntu-latest
-    needs: pre-test
-    if: needs.pre-test.outputs.should_skip != 'true'
     steps:
       - uses: actions/checkout@v4
 
