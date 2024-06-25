@@ -17,7 +17,7 @@ pub struct TypstNodeUpgrader<'a> {
 }
 
 impl<'a> TypstNodeUpgrader<'a> {
-    #[cfg(not(tarpaulin_include))]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(root: &'a SyntaxNode, verbose: bool, compatible: bool) -> Self {
         Self::new_with_upgrader_builder(root, verbose, compatible, TypstDepUpgrader::build)
     }
@@ -101,57 +101,67 @@ struct TypstDepUpgrader {
 }
 
 impl TypstDepUpgrader {
-    #[cfg(not(tarpaulin_include))]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn build(dep: &TypstDep) -> Self {
-        static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<Version>>> = Lazy::new(|| {
-            let mut retry_count = 5;
-            let resp = loop {
-                match reqwest::blocking::get("https://packages.typst.org/preview/index.json") {
-                    Ok(resp) => break resp,
-                    Err(_) if retry_count > 0 => {
-                        retry_count -= 1;
-                        warn!(
-                            "Failed to fetch package metadata, retrying... ({} attempts left)",
-                            retry_count,
-                        );
+        static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<Version>>> = Lazy::new(
+            #[cfg_attr(coverage_nightly, coverage(off))]
+            || {
+                let mut retry_count = 5;
+                let resp = loop {
+                    match reqwest::blocking::get("https://packages.typst.org/preview/index.json") {
+                        Ok(resp) => break resp,
+                        Err(_) if retry_count > 0 => {
+                            retry_count -= 1;
+                            warn!(
+                                "Failed to fetch package metadata, retrying... ({} attempts left)",
+                                retry_count,
+                            );
+                        }
+                        Err(_) => panic!("Failed to fetch package metadata"),
                     }
-                    Err(_) => panic!("Failed to fetch package metadata"),
-                }
-            };
-            let raw_meta = resp
-                .json::<serde_json::Value>()
-                .expect("Failed to parse package metadata")
-                .as_array()
-                .expect("Invalid package metadata")
-                .iter()
-                .map(|v| {
-                    let package = v.as_object().expect("Invalid package metadata");
-                    let name = package
-                        .get("name")
-                        .expect("Package name not found")
-                        .as_str()
-                        .unwrap();
-                    let version = Version::parse(
-                        package
-                            .get("version")
-                            .expect("Package version not found")
-                            .as_str()
-                            .unwrap(),
+                };
+                let raw_meta = resp
+                    .json::<serde_json::Value>()
+                    .expect("Failed to parse package metadata")
+                    .as_array()
+                    .expect("Invalid package metadata")
+                    .iter()
+                    .map(
+                        #[cfg_attr(coverage_nightly, coverage(off))]
+                        |v| {
+                            let package = v.as_object().expect("Invalid package metadata");
+                            let name = package
+                                .get("name")
+                                .expect("Package name not found")
+                                .as_str()
+                                .unwrap();
+                            let version = Version::parse(
+                                package
+                                    .get("version")
+                                    .expect("Package version not found")
+                                    .as_str()
+                                    .unwrap(),
+                            )
+                            .unwrap();
+                            (name.to_string(), version)
+                        },
                     )
-                    .unwrap();
-                    (name.to_string(), version)
-                })
-                .collect::<Vec<_>>();
+                    .collect::<Vec<_>>();
 
-            let mut result = HashMap::new();
-            for (name, version) in raw_meta {
-                result.entry(name).or_insert_with(Vec::new).push(version);
-            }
+                let mut result = HashMap::new();
+                for (name, version) in raw_meta {
+                    result.entry(name).or_insert_with(Vec::new).push(version);
+                }
 
-            result
-        });
+                result
+            },
+        );
 
-        Self::build_with_query(dep, |name| TYPST_PACKAGE_META.get(name).cloned())
+        Self::build_with_query(
+            dep,
+            #[cfg_attr(coverage_nightly, coverage(off))]
+            |name| TYPST_PACKAGE_META.get(name).cloned(),
+        )
     }
 
     fn build_with_query<Q, R>(dep: &TypstDep, query: Q) -> Self
@@ -301,11 +311,7 @@ mod test {
                         $ext,
                     )).unwrap();
 
-                    let old_tree = if matches!($ext, "typ" | "typst") {
-                        typst_syntax::parse(&entry)
-                    } else {
-                        typst_syntax::parse_code(&entry)
-                    };
+                    let old_tree = typst_syntax::parse(&entry);
                     let new_compat = TypstNodeUpgrader::new_with_upgrader_builder(
                         &old_tree,
                         true,

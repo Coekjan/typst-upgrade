@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -36,13 +38,16 @@ struct Cli {
     entries: Vec<PathBuf>,
 }
 
-#[cfg(not(tarpaulin_include))]
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn main() {
-    std::panic::set_hook(Box::new(|info| {
-        if let Some(info) = info.payload().downcast_ref::<&str>() {
-            error!("Fatal": "{}", info);
-        }
-    }));
+    std::panic::set_hook(Box::new(
+        #[cfg_attr(coverage_nightly, coverage(off))]
+        |info| {
+            if let Some(info) = info.payload().downcast_ref::<&str>() {
+                error!("Fatal": "{}", info);
+            }
+        },
+    ));
 
     let args = Cli::parse();
 

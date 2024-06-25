@@ -38,19 +38,25 @@ pub fn init(diff: DiffChoice) {
     DIFF_CHOICE.set(diff).unwrap();
 }
 
-#[cfg(not(tarpaulin_include))]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn show(old: &str, new: &str) {
-    show_difflines(old, new, *DIFF_CHOICE.get().unwrap(), |res| match res {
-        diff::Result::Left(l) => {
-            diff!(del "{}", l);
-        }
-        diff::Result::Both(l, _) => {
-            diff!("{}", l);
-        }
-        diff::Result::Right(r) => {
-            diff!(add "{}", r);
-        }
-    })
+    show_difflines(
+        old,
+        new,
+        *DIFF_CHOICE.get().unwrap(),
+        #[cfg_attr(coverage_nightly, coverage(off))]
+        |res| match res {
+            diff::Result::Left(l) => {
+                diff!(del "{}", l);
+            }
+            diff::Result::Both(l, _) => {
+                diff!("{}", l);
+            }
+            diff::Result::Right(r) => {
+                diff!(add "{}", r);
+            }
+        },
+    )
 }
 
 fn show_difflines(old: &str, new: &str, diff: DiffChoice, out: impl Fn(diff::Result<&str>)) {
@@ -104,12 +110,10 @@ mod test {
     fn show() {
         let old = "line1\nline2\nline3";
         let new = "line1\nline2\nline4";
-        super::show_difflines(old, new, DiffChoice::None, |_| {
-            panic!("should not be called")
-        });
+        super::show_difflines(old, new, DiffChoice::None, |_| unreachable!());
         super::show_difflines(old, new, DiffChoice::Short, |res| match res {
             diff::Result::Left(l) => assert_eq!(l, "line3"),
-            diff::Result::Both(_, _) => panic!("should not be called"),
+            diff::Result::Both(_, _) => unreachable!(),
             diff::Result::Right(r) => assert_eq!(r, "line4"),
         });
         super::show_difflines(old, new, DiffChoice::Full, |res| match res {

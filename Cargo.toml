@@ -40,3 +40,4 @@ panic = "abort"
 [lints.rust]
 unsafe_code = "forbid"
 warnings = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

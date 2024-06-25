@@ -20,7 +20,7 @@ pub fn color_choice() -> ColorChoice {
     *COLOR_CHOICE.get().unwrap_or(&ColorChoice::Auto)
 }
 
-#[cfg(not(tarpaulin_include))]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn term_println(
     mut stream: StandardStream,
     color: Option<Color>,

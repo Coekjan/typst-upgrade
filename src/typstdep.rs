@@ -82,6 +82,14 @@ mod test {
         assert_eq!(dep.namespace(), "preview");
         assert_eq!(dep.name(), "package");
         assert_eq!(dep.version().to_string(), "1.2.3");
+
+        let mut package = String::from("@preview/package:1.2.");
+        for _ in 0..100 {
+            package.push('0');
+        }
+
+        let dep = TypstDep::from_str(&package);
+        assert!(dep.is_err());
     }
 
     #[test]

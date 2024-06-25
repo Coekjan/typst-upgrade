@@ -13,22 +13,24 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
 
       - name: Run Clippy and Format
         run: |
           cargo fmt --all --check
-          cargo clippy --release
+          cargo clippy --workspace --all-targets --all-features
 
-      - name: Install Cargo Tarpaulin
+      - name: Install Cargo LLVM Cov
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-tarpaulin
+          tool: cargo-llvm-cov
 
       - name: Test with Coverage
-        run: cargo tarpaulin --workspace --timeout 120 --out xml
+        run: cargo +nightly llvm-cov --cobertura --output-path cobertura.xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
