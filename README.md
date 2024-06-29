@@ -37,13 +37,23 @@ Options:
 
 ## Installation
 
+### Cargo
+
 You can install `typst-upgrade` via `cargo`:
 
 ```console
 $ cargo install typst-upgrade
 ```
 
-Or you can download the prebuilt binaries from the [release page](https://github.com/Coekjan/typst-upgrade/releases).
+Or if you use [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall), you can install `typst-upgrade` via `cargo binstall`:
+
+```console
+$ cargo binstall typst-upgrade
+```
+
+### Prebuilt Binaries
+
+You can download the prebuilt binaries from the [release page](https://github.com/Coekjan/typst-upgrade/releases).
 
 ## License
 
