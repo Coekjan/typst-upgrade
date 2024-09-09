@@ -11,7 +11,7 @@ categories = ["development-tools"]
 exclude = ["/.github", "/tests"]
 
 [dependencies]
-clap = { version = "4.5.16", features = [
+clap = { version = "4.5.17", features = [
     "derive",
     "env",
     "suggestions",
