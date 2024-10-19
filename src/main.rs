@@ -13,7 +13,6 @@ use crate::upgrade::TypstNodeUpgrader;
 #[macro_use]
 mod term;
 mod diffline;
-mod typstdep;
 mod upgrade;
 
 #[derive(Parser)]

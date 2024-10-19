@@ -1,32 +1,30 @@
 use std::{collections::HashMap, str::FromStr};
 
 use once_cell::sync::Lazy;
-use semver::Version;
 use typst_syntax::{
     ast::{AstNode, Expr, ModuleImport},
+    package::{PackageSpec, PackageVersion},
     SyntaxKind, SyntaxNode,
 };
-
-use crate::typstdep::TypstDep;
 
 pub struct TypstNodeUpgrader<'a> {
     root: &'a SyntaxNode,
     verbose: bool,
     compatible: bool,
-    upgrader_builder: Box<dyn Fn(&TypstDep) -> TypstDepUpgrader>,
+    upgrader_builder: Box<dyn Fn(&PackageSpec) -> PackageUpgrader>,
 }
 
 impl<'a> TypstNodeUpgrader<'a> {
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(root: &'a SyntaxNode, verbose: bool, compatible: bool) -> Self {
-        Self::new_with_upgrader_builder(root, verbose, compatible, TypstDepUpgrader::build)
+        Self::new_with_upgrader_builder(root, verbose, compatible, PackageUpgrader::build)
     }
 
     fn new_with_upgrader_builder(
         root: &'a SyntaxNode,
         verbose: bool,
         compatible: bool,
-        upgrader_builder: impl Fn(&TypstDep) -> TypstDepUpgrader + 'static,
+        upgrader_builder: impl Fn(&PackageSpec) -> PackageUpgrader + 'static,
     ) -> Self {
         Self {
             root,
@@ -54,18 +52,18 @@ impl<'a> TypstNodeUpgrader<'a> {
                 }
                 return node.clone();
             };
-            let Ok(dep) = TypstDep::from_str(s.to_untyped().text()) else {
+            let Ok(package) = PackageSpec::from_str(&s.get()) else {
                 return node.clone();
             };
-            if dep.is_local() {
+            if package.namespace == "local" {
                 if self.verbose {
-                    info!("NOTE": "Local package {dep} is not upgradable");
+                    info!("NOTE": "Local package {package} is not upgradable");
                 }
                 return node.clone();
             }
-            let Some(next) = (self.upgrader_builder)(&dep).next(self.compatible) else {
+            let Some(next) = (self.upgrader_builder)(&package).next(self.compatible) else {
                 if self.verbose {
-                    info!("NOTE": "Package {dep} is already up-to-date");
+                    info!("NOTE": "Package {package} is already up-to-date");
                 }
                 return node.clone();
             };
@@ -95,15 +93,15 @@ impl<'a> TypstNodeUpgrader<'a> {
     }
 }
 
-struct TypstDepUpgrader {
-    dep: TypstDep,
-    ver: Vec<TypstDep>,
+struct PackageUpgrader {
+    pkg: PackageSpec,
+    ver: Vec<PackageSpec>,
 }
 
-impl TypstDepUpgrader {
+impl PackageUpgrader {
     #[cfg_attr(coverage_nightly, coverage(off))]
-    fn build(dep: &TypstDep) -> Self {
-        static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<Version>>> = Lazy::new(|| {
+    fn build(package: &PackageSpec) -> Self {
+        static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<PackageVersion>>> = Lazy::new(|| {
             let mut retry_count = 5;
             let resp = loop {
                 match reqwest::blocking::get("https://packages.typst.org/preview/index.json") {
@@ -131,7 +129,7 @@ impl TypstDepUpgrader {
                         .expect("Package name not found")
                         .as_str()
                         .unwrap();
-                    let version = Version::parse(
+                    let version = PackageVersion::from_str(
                         package
                             .get("version")
                             .expect("Package version not found")
@@ -151,46 +149,52 @@ impl TypstDepUpgrader {
             result
         });
 
-        Self::build_with_query(dep, |name| TYPST_PACKAGE_META.get(name).cloned())
+        Self::build_with_query(package, |name| TYPST_PACKAGE_META.get(name).cloned())
     }
 
-    fn build_with_query<Q, R>(dep: &TypstDep, query: Q) -> Self
+    fn build_with_query<Q, R>(package: &PackageSpec, query: Q) -> Self
     where
         Q: Fn(&str) -> Option<R>,
-        R: IntoIterator<Item = Version>,
+        R: IntoIterator<Item = PackageVersion>,
     {
-        if dep.is_local() {
-            panic!("Local package {dep} is not upgradable");
+        if package.namespace == "local" {
+            panic!("Local package {package} is not upgradable");
         }
 
-        if dep.namespace() != "preview" {
-            panic!("Unknown namespace {} for package {}", dep.namespace(), dep);
+        if package.namespace != "preview" {
+            panic!(
+                "Unknown namespace {} for package {}",
+                package.namespace, package
+            );
         }
 
-        let ver: Vec<_> = (query)(dep.name())
+        let ver: Vec<_> = (query)(&package.name)
             .expect("Package not found")
             .into_iter()
-            .filter(|version| *version > dep.version())
-            .map(|version| dep.upgrade_to(version))
+            .filter(|version| *version > package.version)
+            .map(|version| PackageSpec {
+                version,
+                ..package.clone()
+            })
             .collect();
 
-        TypstDepUpgrader {
-            dep: dep.clone(),
+        PackageUpgrader {
+            pkg: package.clone(),
             ver,
         }
     }
 
-    fn next(&self, compatible: bool) -> Option<TypstDep> {
+    fn next(&self, compatible: bool) -> Option<PackageSpec> {
         self.ver
             .iter()
             .filter(|dep| {
                 if compatible {
-                    dep.version().major == self.dep.version().major
+                    dep.version.major == self.pkg.version.major
                 } else {
                     true
                 }
             })
-            .max_by_key(|dep| dep.version().clone())
+            .max_by_key(|dep| dep.version)
             .cloned()
     }
 }
@@ -200,26 +204,26 @@ mod test {
     use std::{fs, str::FromStr};
 
     use paste::paste;
-    use semver::Version;
+    use typst_syntax::package::{PackageSpec, PackageVersion};
 
-    use crate::{typstdep::TypstDep, upgrade::TypstDepUpgrader};
+    use crate::upgrade::PackageUpgrader;
 
     use super::TypstNodeUpgrader;
 
     #[test]
     fn next() {
-        let dep = TypstDep::from_str("@preview/package:1.2.3").unwrap();
+        let package = PackageSpec::from_str("@preview/package:1.2.3").unwrap();
 
-        let upgrader = TypstDepUpgrader {
-            dep: dep.clone(),
+        let upgrader = PackageUpgrader {
+            pkg: package.clone(),
             ver: Vec::new(),
         };
         assert!(upgrader.next(true).is_none());
         assert!(upgrader.next(false).is_none());
 
-        let upgrader = TypstDepUpgrader {
-            dep: dep.clone(),
-            ver: vec![TypstDep::from_str("@preview/package:2.0.0").unwrap()],
+        let upgrader = PackageUpgrader {
+            pkg: package.clone(),
+            ver: vec![PackageSpec::from_str("@preview/package:2.0.0").unwrap()],
         };
         assert!(upgrader.next(true).is_none());
 
@@ -229,12 +233,12 @@ mod test {
         let next_incompat = next_incompat.unwrap();
         assert_eq!(next_incompat.to_string(), "@preview/package:2.0.0");
 
-        let upgrader = TypstDepUpgrader {
-            dep,
+        let upgrader = PackageUpgrader {
+            pkg: package,
             ver: vec![
-                TypstDep::from_str("@preview/package:1.2.4").unwrap(),
-                TypstDep::from_str("@preview/package:1.3.0").unwrap(),
-                TypstDep::from_str("@preview/package:2.0.0").unwrap(),
+                PackageSpec::from_str("@preview/package:1.2.4").unwrap(),
+                PackageSpec::from_str("@preview/package:1.3.0").unwrap(),
+                PackageSpec::from_str("@preview/package:2.0.0").unwrap(),
             ],
         };
 
@@ -254,23 +258,23 @@ mod test {
     #[test]
     #[should_panic]
     fn should_not_upgrade_non_preview() {
-        let dep = TypstDep::from_str("@non-preview/package:1.2.3").unwrap();
-        assert_eq!(dep.namespace(), "non-preview");
-        TypstDepUpgrader::build_with_query(&dep, |_| -> Option<Vec<_>> { None });
+        let package = PackageSpec::from_str("@non-preview/package:1.2.3").unwrap();
+        assert_eq!(package.namespace, "non-preview");
+        PackageUpgrader::build_with_query(&package, |_| -> Option<Vec<_>> { None });
     }
 
     #[test]
     #[should_panic]
     fn should_not_upgrade_local() {
-        let dep = TypstDep::from_str("@local/package:1.2.3").unwrap();
-        assert!(dep.is_local());
-        TypstDepUpgrader::build_with_query(&dep, |_| -> Option<Vec<_>> { None });
+        let package = PackageSpec::from_str("@local/package:1.2.3").unwrap();
+        assert!(package.namespace == "local");
+        PackageUpgrader::build_with_query(&package, |_| -> Option<Vec<_>> { None });
     }
 
     #[test]
     fn upgrader_build() {
-        let dep = TypstDep::from_str("@preview/pack1:0.1.0").unwrap();
-        let upgrader = TypstDepUpgrader::build_with_query(&dep, mock_query);
+        let package = PackageSpec::from_str("@preview/pack1:0.1.0").unwrap();
+        let upgrader = PackageUpgrader::build_with_query(&package, mock_query);
         assert_eq!(
             upgrader.next(true).unwrap().to_string(),
             "@preview/pack1:0.2.2"
@@ -314,7 +318,7 @@ mod test {
                         stringify!($name),
                         $ext,
                     )).unwrap();
-                    assert_eq!(new_compat.into_text(), res_compat);
+                    assert_eq!(new_compat.into_text(), res_compat, concat!("compat: ", stringify!($name), "/", $ext));
 
                     let new_incompat = TypstNodeUpgrader::new_with_upgrader_builder(
                         &old_tree,
@@ -328,7 +332,7 @@ mod test {
                         stringify!($name),
                         $ext,
                     )).unwrap();
-                    assert_eq!(new_incompat.into_text(), res_incompat);
+                    assert_eq!(new_incompat.into_text(), res_incompat, concat!("incompat: ", stringify!($name), "/", $ext));
                 }
             }
         };
@@ -344,35 +348,35 @@ mod test {
         exception2 / "typ",
     }
 
-    fn mock_upgrader_builder(dep: &TypstDep) -> TypstDepUpgrader {
-        TypstDepUpgrader::build_with_query(dep, mock_query)
+    fn mock_upgrader_builder(package: &PackageSpec) -> PackageUpgrader {
+        PackageUpgrader::build_with_query(package, mock_query)
     }
 
-    fn mock_query(name: &str) -> Option<Vec<Version>> {
+    fn mock_query(name: &str) -> Option<Vec<PackageVersion>> {
         match name {
             "pack1" => Some(vec![
-                Version::parse("0.1.0").unwrap(),
-                Version::parse("0.1.1").unwrap(),
-                Version::parse("0.2.0").unwrap(),
-                Version::parse("0.2.1").unwrap(),
-                Version::parse("0.2.2").unwrap(),
-                Version::parse("1.0.0").unwrap(),
-                Version::parse("1.0.1").unwrap(),
-                Version::parse("1.1.0").unwrap(),
-                Version::parse("1.1.1").unwrap(),
+                PackageVersion::from_str("0.1.0").unwrap(),
+                PackageVersion::from_str("0.1.1").unwrap(),
+                PackageVersion::from_str("0.2.0").unwrap(),
+                PackageVersion::from_str("0.2.1").unwrap(),
+                PackageVersion::from_str("0.2.2").unwrap(),
+                PackageVersion::from_str("1.0.0").unwrap(),
+                PackageVersion::from_str("1.0.1").unwrap(),
+                PackageVersion::from_str("1.1.0").unwrap(),
+                PackageVersion::from_str("1.1.1").unwrap(),
             ]),
             "pack2" => Some(vec![
-                Version::parse("0.1.0").unwrap(),
-                Version::parse("1.0.0").unwrap(),
-                Version::parse("1.1.0").unwrap(),
-                Version::parse("2.0.0").unwrap(),
+                PackageVersion::from_str("0.1.0").unwrap(),
+                PackageVersion::from_str("1.0.0").unwrap(),
+                PackageVersion::from_str("1.1.0").unwrap(),
+                PackageVersion::from_str("2.0.0").unwrap(),
             ]),
             "pack3" => Some(vec![
-                Version::parse("0.1.0").unwrap(),
-                Version::parse("0.2.0").unwrap(),
-                Version::parse("1.0.0").unwrap(),
-                Version::parse("2.0.0").unwrap(),
-                Version::parse("3.0.0").unwrap(),
+                PackageVersion::from_str("0.1.0").unwrap(),
+                PackageVersion::from_str("0.2.0").unwrap(),
+                PackageVersion::from_str("1.0.0").unwrap(),
+                PackageVersion::from_str("2.0.0").unwrap(),
+                PackageVersion::from_str("3.0.0").unwrap(),
             ]),
             _ => None,
         }
