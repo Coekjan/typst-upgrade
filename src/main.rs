@@ -3,6 +3,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::ExitCode,
 };
 
 use clap::{ColorChoice, Parser};
@@ -18,27 +19,33 @@ mod upgrade;
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long, help = "Dry run without editing files")]
+    /// Dry run without editing files, exit with `73` if there are changes
+    #[arg(short, long)]
     dry_run: bool,
 
-    #[arg(short, long, help = "Allow incompatible upgrades")]
+    /// Allow incompatible upgrades
+    #[arg(short, long)]
     incompatible: bool,
 
+    /// Colorize output
     #[arg(long, default_value_t = ColorChoice::Auto)]
     color: ColorChoice,
 
+    /// Diff style
     #[arg(long, default_value_t = DiffChoice::Short)]
     diff: DiffChoice,
 
-    #[arg(short, long, help = "Print more information")]
+    /// Print more information
+    #[arg(short, long)]
     verbose: bool,
 
+    /// Typst entry paths
     #[arg(value_name = "TYPST_ENTRY_PATHS", required = true)]
     entries: Vec<PathBuf>,
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-fn main() {
+fn main() -> ExitCode {
     std::panic::set_hook(Box::new(|info| {
         if let Some(info) = info.payload().downcast_ref::<&str>() {
             error!("Fatal": "{}", info);
@@ -61,6 +68,8 @@ fn main() {
 
     let typst_files = typst_files;
 
+    let mut exit_code = ExitCode::SUCCESS;
+
     for file in &typst_files {
         let ext = file.extension().unwrap();
         let content = fs::read_to_string(file).expect("Cannot read file");
@@ -75,12 +84,16 @@ fn main() {
             let old = tree.into_text();
             let new = result.into_text();
             diffline::show(&old, &new);
-            if !args.dry_run {
+            if args.dry_run {
+                exit_code = ExitCode::from(73);
+            } else {
                 info!("Updating": "{}", file.display());
                 fs::write(file, new.to_string()).expect("Cannot write file");
             }
         }
     }
+
+    exit_code
 }
 
 fn find_all_typst_files(path: impl AsRef<Path>) -> Vec<PathBuf> {
