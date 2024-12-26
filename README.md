@@ -55,6 +55,18 @@ By default, `typst-upgrade` will only upgrade your dependencies to the latest co
 
 Typst packages commonly follow [Semantic Versioning](https://semver.org/), so upgrading to the latest compatible version is usually recommended. Note that some packages are in-development (major version is `0`), which means they may introduce breaking changes in minor versions, and `--incompatible` flag is required to upgrade such packages.
 
+### GitHub Actions
+
+You can use `typst-upgrade` in your GitHub Actions workflow to automatically check if any of your dependencies can be upgraded. Here is an example workflow:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - uses: taiki-e/install-action@cargo-binstall
+  - run: cargo binstall typst-upgrade
+  - run: typst-upgrade . --dry-run
+```
+
 ## Installation
 
 ### Cargo
