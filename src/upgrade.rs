@@ -188,11 +188,8 @@ impl PackageUpgrader {
         self.ver
             .iter()
             .filter(|dep| {
-                if compatible {
-                    dep.version.major == self.pkg.version.major
-                } else {
-                    true
-                }
+                !compatible
+                    || (self.pkg.version.major != 0 && self.pkg.version.major == dep.version.major)
             })
             .max_by_key(|dep| dep.version)
             .cloned()
@@ -273,15 +270,15 @@ mod test {
 
     #[test]
     fn upgrader_build() {
-        let package = PackageSpec::from_str("@preview/pack1:0.1.0").unwrap();
+        let package = PackageSpec::from_str("@preview/pack1:1.1.0").unwrap();
         let upgrader = PackageUpgrader::build_with_query(&package, mock_query);
         assert_eq!(
             upgrader.next(true).unwrap().to_string(),
-            "@preview/pack1:0.2.2"
+            "@preview/pack1:1.1.1"
         );
         assert_eq!(
             upgrader.next(false).unwrap().to_string(),
-            "@preview/pack1:1.1.1"
+            "@preview/pack1:2.0.0"
         );
     }
 
@@ -364,6 +361,7 @@ mod test {
                 PackageVersion::from_str("1.0.1").unwrap(),
                 PackageVersion::from_str("1.1.0").unwrap(),
                 PackageVersion::from_str("1.1.1").unwrap(),
+                PackageVersion::from_str("2.0.0").unwrap(),
             ]),
             "pack2" => Some(vec![
                 PackageVersion::from_str("0.1.0").unwrap(),

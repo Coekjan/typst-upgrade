@@ -1,5 +1,5 @@
 #strong[
-    #import "@preview/pack1:1.1.1": pack
+    #import "@preview/pack1:2.0.0": pack
 
     here is strong text, #pack.
 ]

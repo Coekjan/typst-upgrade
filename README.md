@@ -35,6 +35,26 @@ Options:
   -V, --version        Print version
 ```
 
+### Examples
+
+```console
+$ cat main.typ
+#import "@preview/cetz:0.2.1"
+$ typst-upgrade -i main.typ
+    Checking ./main.typ
+           - #import "@preview/cetz:0.2.1"
+           + #import "@preview/cetz:0.3.1"
+    Updating ./main.typ
+$ cat main.typ
+#import "@preview/cetz:0.3.1"
+```
+
+### Compatible Upgrade
+
+By default, `typst-upgrade` will only upgrade your dependencies to the latest compatible version. If you want to upgrade to the latest version regardless of compatibility, you can use the `--incompatible` or `-i` flag.
+
+Typst packages commonly follow [Semantic Versioning](https://semver.org/), so upgrading to the latest compatible version is usually recommended. Note that some packages are in-development (major version is `0`), which means they may introduce breaking changes in minor versions, and `--incompatible` flag is required to upgrade such packages.
+
 ## Installation
 
 ### Cargo
