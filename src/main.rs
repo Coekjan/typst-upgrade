@@ -69,6 +69,7 @@ fn main() -> ExitCode {
     let typst_files = typst_files;
 
     let mut exit_code = ExitCode::SUCCESS;
+    let mut incompat_versions_available = false;
 
     for file in &typst_files {
         let ext = file.extension().unwrap();
@@ -79,7 +80,9 @@ fn main() -> ExitCode {
             panic!("Unknown file extension of: {}", file.display());
         };
         info!("Checking": "{}", file.display());
-        let result = TypstNodeUpgrader::new(&tree, args.verbose, !args.incompatible).convert();
+        let (result, has_incompat_versions) =
+            TypstNodeUpgrader::new(&tree, args.verbose, !args.incompatible).convert();
+        incompat_versions_available |= has_incompat_versions;
         if tree != result {
             let old = tree.into_text();
             let new = result.into_text();
@@ -91,6 +94,10 @@ fn main() -> ExitCode {
                 fs::write(file, new.to_string()).expect("Cannot write file");
             }
         }
+    }
+
+    if incompat_versions_available {
+        warn!("Some packages have incompatible versions, apply the update with `--incompatible` or `-i` flag");
     }
 
     exit_code

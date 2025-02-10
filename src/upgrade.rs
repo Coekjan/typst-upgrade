@@ -34,14 +34,23 @@ impl<'a> TypstNodeUpgrader<'a> {
         }
     }
 
-    pub fn convert(&self) -> SyntaxNode {
-        match self.root.kind() {
-            SyntaxKind::Markup => self.convert_recursively(self.root),
+    /// Convert the whole syntax tree with the upgrader
+    ///
+    /// Returns the converted node and whether there are incompatible versions
+    pub fn convert(&self) -> (SyntaxNode, bool) {
+        let mut has_incompat_version = false;
+        let result = match self.root.kind() {
+            SyntaxKind::Markup => self.convert_recursively(self.root, &mut has_incompat_version),
             kind => panic!("Unexpected node kind: {:?}", kind),
-        }
+        };
+        (result, has_incompat_version)
     }
 
-    fn convert_recursively(&self, node: &SyntaxNode) -> SyntaxNode {
+    fn convert_recursively(
+        &self,
+        node: &SyntaxNode,
+        has_incompat_versions: &mut bool,
+    ) -> SyntaxNode {
         if let Some(module_import) = node.cast::<ModuleImport>() {
             let Expr::Str(s) = module_import.source() else {
                 if self.verbose {
@@ -61,7 +70,43 @@ impl<'a> TypstNodeUpgrader<'a> {
                 }
                 return node.clone();
             }
-            let Some(next) = (self.upgrader_builder)(&package).next(self.compatible) else {
+            let next = if self.compatible {
+                match (
+                    (self.upgrader_builder)(&package).next(false),
+                    (self.upgrader_builder)(&package).next(true),
+                ) {
+                    (Some(incompat), Some(compat)) => {
+                        warn!("Update": "{package} -> {} (available: {})", compat.version, incompat.version);
+                        *has_incompat_versions = true;
+                        compat
+                    }
+                    (None, Some(compat)) => {
+                        if self.verbose {
+                            info!("Update": "{package}");
+                        }
+                        compat
+                    }
+                    (Some(incompat), None) => {
+                        if self.verbose {
+                            info!("NOTE": "Package {package} is already up-to-date");
+                        }
+                        warn!("Unchanged": "{package} (available: {})", incompat.version);
+                        *has_incompat_versions = true;
+                        return node.clone();
+                    }
+                    _ => {
+                        if self.verbose {
+                            info!("NOTE": "Package {package} is already up-to-date");
+                        }
+                        return node.clone();
+                    }
+                }
+            } else if let Some(next) = (self.upgrader_builder)(&package).next(false) {
+                if self.verbose {
+                    info!("Update": "{package} -> {}", next.version);
+                }
+                next
+            } else {
                 if self.verbose {
                     info!("NOTE": "Package {package} is already up-to-date");
                 }
@@ -76,7 +121,7 @@ impl<'a> TypstNodeUpgrader<'a> {
                         {
                             SyntaxNode::leaf(SyntaxKind::Str, format!("\"{}\"", next))
                         }
-                        _ => self.convert_recursively(child),
+                        _ => self.convert_recursively(child, has_incompat_versions),
                     })
                     .collect(),
             )
@@ -86,7 +131,7 @@ impl<'a> TypstNodeUpgrader<'a> {
             SyntaxNode::inner(
                 node.kind(),
                 node.children()
-                    .map(|child| self.convert_recursively(child))
+                    .map(|child| self.convert_recursively(child, has_incompat_versions))
                     .collect(),
             )
         }
@@ -308,7 +353,7 @@ mod test {
                         true,
                         true,
                         mock_upgrader_builder,
-                    ).convert();
+                    ).convert().0;
                     let res_compat = fs::read_to_string(&format!(
                         "{}/tests/{}/entry.compat.{}",
                         env!("CARGO_MANIFEST_DIR"),
@@ -322,7 +367,7 @@ mod test {
                         true,
                         false,
                         mock_upgrader_builder,
-                    ).convert();
+                    ).convert().0;
                     let res_incompat = fs::read_to_string(&format!(
                         "{}/tests/{}/entry.incompat.{}",
                         env!("CARGO_MANIFEST_DIR"),
