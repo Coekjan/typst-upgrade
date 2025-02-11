@@ -1,4 +1,8 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::HashMap,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 use once_cell::sync::Lazy;
 use typst_syntax::{
@@ -149,12 +153,23 @@ impl PackageUpgrader {
         static TYPST_PACKAGE_META: Lazy<HashMap<String, Vec<PackageVersion>>> = Lazy::new(|| {
             let mut retry_count = 5;
             let resp = loop {
+                let now = Instant::now();
                 match reqwest::blocking::get("https://packages.typst.org/preview/index.json") {
-                    Ok(resp) => break resp,
+                    Ok(resp) => {
+                        let elapsed = now.elapsed();
+                        if elapsed >= Duration::from_secs(1) {
+                            warn!(
+                                "Network": "Fetched typst package metadata in {}.{:03}s",
+                                elapsed.as_secs(),
+                                elapsed.subsec_millis(),
+                            );
+                        }
+                        break resp;
+                    }
                     Err(_) if retry_count > 0 => {
                         retry_count -= 1;
                         warn!(
-                            "Failed to fetch package metadata, retrying... ({} attempts left)",
+                            "Network": "Failed to fetch package metadata, retrying... ({} attempts left)",
                             retry_count,
                         );
                     }
