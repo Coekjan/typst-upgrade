@@ -123,14 +123,18 @@ mod test {
         super::init(clap::ColorChoice::Auto);
         assert_eq!(super::color_choice(), ColorChoice::Auto);
 
-        assert!(std::panic::catch_unwind(|| {
-            super::init(clap::ColorChoice::Always);
-        })
-        .is_err());
+        assert!(
+            std::panic::catch_unwind(|| {
+                super::init(clap::ColorChoice::Always);
+            })
+            .is_err()
+        );
 
-        assert!(std::panic::catch_unwind(|| {
-            super::init(clap::ColorChoice::Never);
-        })
-        .is_err());
+        assert!(
+            std::panic::catch_unwind(|| {
+                super::init(clap::ColorChoice::Never);
+            })
+            .is_err()
+        );
     }
 }

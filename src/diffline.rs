@@ -90,14 +90,18 @@ mod test {
     #[test]
     fn init() {
         super::init(DiffChoice::Short);
-        assert!(std::panic::catch_unwind(|| {
-            super::init(DiffChoice::Full);
-        })
-        .is_err());
-        assert!(std::panic::catch_unwind(|| {
-            super::init(DiffChoice::None);
-        })
-        .is_err());
+        assert!(
+            std::panic::catch_unwind(|| {
+                super::init(DiffChoice::Full);
+            })
+            .is_err()
+        );
+        assert!(
+            std::panic::catch_unwind(|| {
+                super::init(DiffChoice::None);
+            })
+            .is_err()
+        );
     }
 
     #[test]

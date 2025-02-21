@@ -97,7 +97,9 @@ fn main() -> ExitCode {
     }
 
     if incompat_versions_available {
-        warn!("Some packages have incompatible versions, apply the update with `--incompatible` or `-i` flag");
+        warn!(
+            "Some packages have incompatible versions, apply the update with `--incompatible` or `-i` flag"
+        );
     }
 
     exit_code
@@ -160,9 +162,10 @@ mod test {
             .join("proj");
         let files = find_all_typst_files(path);
         assert!(files.iter().all(|f| f.exists() && f.is_file()));
-        assert!(files.iter().all(|f| f
-            .extension()
-            .is_some_and(|ext| matches!(ext.to_str().unwrap(), "typ" | "typst"))));
+        assert!(files.iter().all(|f| {
+            f.extension()
+                .is_some_and(|ext| matches!(ext.to_str().unwrap(), "typ" | "typst"))
+        }));
 
         // See `${PROJECT_ROOT}/tests/proj/` for the directory structure
         for dir in [
@@ -172,14 +175,11 @@ mod test {
             "ｌｉｂ4", // for utf-8 path testing
             "sublib1",
         ] {
-            assert!(files.iter().any(|f| f
-                .parent()
-                .unwrap()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                == dir));
+            assert!(
+                files
+                    .iter()
+                    .any(|f| f.parent().unwrap().file_name().unwrap().to_str().unwrap() == dir)
+            );
         }
     }
 }

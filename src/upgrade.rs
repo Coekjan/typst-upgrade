@@ -6,9 +6,9 @@ use std::{
 
 use once_cell::sync::Lazy;
 use typst_syntax::{
+    SyntaxKind, SyntaxNode,
     ast::{AstNode, Expr, ModuleImport},
     package::{PackageSpec, PackageVersion},
-    SyntaxKind, SyntaxNode,
 };
 
 pub struct TypstNodeUpgrader<'a> {
