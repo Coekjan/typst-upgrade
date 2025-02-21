@@ -1,7 +1,7 @@
 [package]
 name = "typst-upgrade"
 version = "1.6.0"
-edition = "2021"
+edition = "2024"
 authors = ["coekjan <cn_yzr@qq.com>"]
 license = "MIT"
 description = "A tool to upgrade typst packages"
@@ -21,7 +21,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 serde_json = "1"
 termcolor = "1"
-typst-syntax = "0.12"
+typst-syntax = "0.13"
 
 [dev-dependencies]
 paste = "1"
