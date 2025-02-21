@@ -23,13 +23,13 @@ A tool to upgrade typst packages
 Usage: typst-upgrade [OPTIONS] <TYPST_ENTRY_PATHS>...
 
 Arguments:
-  <TYPST_ENTRY_PATHS>...  
+  <TYPST_ENTRY_PATHS>...  Typst entry paths
 
 Options:
-  -d, --dry-run        Dry run without editing files
+  -d, --dry-run        Dry run without editing files, exit with `73` if there are changes
   -i, --incompatible   Allow incompatible upgrades
-      --color <COLOR>  [default: auto] [possible values: auto, always, never]
-      --diff <DIFF>    [default: short] [possible values: short, full, none]
+      --color <COLOR>  Colorize output [default: auto] [possible values: auto, always, never]
+      --diff <DIFF>    Diff style [default: short] [possible values: short, full, none]
   -v, --verbose        Print more information
   -h, --help           Print help
   -V, --version        Print version
