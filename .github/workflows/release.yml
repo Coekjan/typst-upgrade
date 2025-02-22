@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Publish Crate
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

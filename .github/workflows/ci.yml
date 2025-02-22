@@ -111,6 +111,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Publish Crate (Dry Run)
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --dry-run
