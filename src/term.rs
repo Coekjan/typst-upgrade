@@ -31,13 +31,13 @@ pub fn term_println(
     stream
         .set_color(ColorSpec::new().set_bold(true).set_fg(color))
         .and_then(|_| {
-            write!(&mut stream, "{:>12} ", motion)?;
+            write!(&mut stream, "{motion:>12} ")?;
             if whole_line {
                 stream.set_color(ColorSpec::new().set_reset(true).set_fg(color))
             } else {
                 stream.set_color(ColorSpec::new().set_reset(true))
             }?;
-            writeln!(&mut stream, "{}", args)
+            writeln!(&mut stream, "{args}")
         })
 }
 

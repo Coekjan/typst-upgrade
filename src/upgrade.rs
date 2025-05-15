@@ -45,7 +45,7 @@ impl<'a> TypstNodeUpgrader<'a> {
         let mut has_incompat_version = false;
         let result = match self.root.kind() {
             SyntaxKind::Markup => self.convert_recursively(self.root, &mut has_incompat_version),
-            kind => panic!("Unexpected node kind: {:?}", kind),
+            kind => panic!("Unexpected node kind: {kind:?}"),
         };
         (result, has_incompat_version)
     }
@@ -123,7 +123,7 @@ impl<'a> TypstNodeUpgrader<'a> {
                         SyntaxKind::Str
                             if child.text() == module_import.source().to_untyped().text() =>
                         {
-                            SyntaxNode::leaf(SyntaxKind::Str, format!("\"{}\"", next))
+                            SyntaxNode::leaf(SyntaxKind::Str, format!("\"{next}\""))
                         }
                         _ => self.convert_recursively(child, has_incompat_versions),
                     })
