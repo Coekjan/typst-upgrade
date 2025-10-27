@@ -116,7 +116,7 @@ jobs:
       - name: Publish Crate (Dry Run)
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --dry-run
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           path: artifacts
 
