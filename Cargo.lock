@@ -894,9 +894,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.24"
+version = "0.12.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d0946410b9f7b082a427e4ef5c8ff541a88b357bc6c637c40db3a68ac70a36f"
+checksum = "b6eff9328d40131d43bd911d42d79eb6a47312002a4daefc9e37f17e74a7701a"
 dependencies = [
  "base64",
  "bytes",
@@ -1296,9 +1296,9 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.6.5"
+version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cc2d9e086a412a451384326f521c8123a99a466b329941a9403696bff9b0da2"
+checksum = "d4e6559d53cc268e5031cd8429d05415bc4cb4aefc4aa5d6cc35fbf5b924a1f8"
 dependencies = [
  "bitflags",
  "bytes",
@@ -1351,9 +1351,9 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "typst-syntax"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19e223636668a2930e0a46b18e3786d4ae02f69ac5d9dda58e34ca431403d05c"
+checksum = "a95d9192060e23b1e491b0b94dff676acddc92a4d672aeb8ca3890a5a734e879"
 dependencies = [
  "ecow",
  "rustc-hash",
@@ -1370,9 +1370,9 @@ dependencies = [
 
 [[package]]
 name = "typst-timing"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3347a043b8659b104f198abe825a6c419d0675da276489c310a5620aea799816"
+checksum = "7be94f8faf19841b49574ef5c7fd7a12e2deb7c3d8deba5a596f35d2222024cd"
 dependencies = [
  "parking_lot",
  "serde",
@@ -1395,9 +1395,9 @@ dependencies = [
 
 [[package]]
 name = "typst-utils"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "737d445f5c0cb75b382a6841953a9e22daadad2c264402b41ebf5388356369fd"
+checksum = "a3966c92e8fa48c7ce898130d07000d985f18206d92b250f0f939287fbccdee3"
 dependencies = [
  "once_cell",
  "portable-atomic",
