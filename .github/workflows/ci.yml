@@ -98,7 +98,7 @@ jobs:
           fi
 
       - name: Upload Binary Artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: typst-upgrade-${{ matrix.target }}
           path: typst-upgrade-${{ matrix.target }}*
