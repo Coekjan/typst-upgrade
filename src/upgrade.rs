@@ -60,7 +60,7 @@ impl<'a> TypstNodeUpgrader<'a> {
                 if self.verbose {
                     info!(
                         "NOTE": "Cannot upgrade non-string module import: {}",
-                        node.clone().into_text(),
+                        node.full_text(),
                     );
                 }
                 return node.clone();
@@ -121,7 +121,8 @@ impl<'a> TypstNodeUpgrader<'a> {
                 node.children()
                     .map(|child| match child.kind() {
                         SyntaxKind::Str
-                            if child.text() == module_import.source().to_untyped().text() =>
+                            if child.leaf_text()
+                                == module_import.source().to_untyped().leaf_text() =>
                         {
                             SyntaxNode::leaf(SyntaxKind::Str, format!("\"{next}\""))
                         }
@@ -375,7 +376,7 @@ mod test {
                         stringify!($name),
                         $ext,
                     )).unwrap();
-                    assert_eq!(new_compat.into_text(), res_compat, concat!("compat: ", stringify!($name), "/", $ext));
+                    assert_eq!(new_compat.full_text(), res_compat, concat!("compat: ", stringify!($name), "/", $ext));
 
                     let new_incompat = TypstNodeUpgrader::new_with_upgrader_builder(
                         &old_tree,
@@ -389,7 +390,7 @@ mod test {
                         stringify!($name),
                         $ext,
                     )).unwrap();
-                    assert_eq!(new_incompat.into_text(), res_incompat, concat!("incompat: ", stringify!($name), "/", $ext));
+                    assert_eq!(new_incompat.full_text(), res_incompat, concat!("incompat: ", stringify!($name), "/", $ext));
                 }
             }
         };

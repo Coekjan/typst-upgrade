@@ -84,8 +84,8 @@ fn main() -> ExitCode {
             TypstNodeUpgrader::new(&tree, args.verbose, !args.incompatible).convert();
         incompat_versions_available |= has_incompat_versions;
         if tree != result {
-            let old = tree.into_text();
-            let new = result.into_text();
+            let old = tree.full_text();
+            let new = result.full_text();
             diffline::show(&old, &new);
             if args.dry_run {
                 exit_code = ExitCode::from(73);
