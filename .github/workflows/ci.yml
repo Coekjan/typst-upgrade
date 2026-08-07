@@ -25,7 +25,7 @@ jobs:
           cargo clippy --workspace --all-targets --all-features
 
       - name: Install Cargo LLVM Cov
-        uses: taiki-e/install-action@v2.85.7
+        uses: taiki-e/install-action@v2.85.8
         with:
           tool: cargo-llvm-cov
 
